@@ -27,11 +27,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-const ExpressionStopCharacters = " =:[({;,!+-*/&|^<>";
+const ExpressionStopCharacters = " =[({;,!+-*/&|^<>";
 
 WebInspector.ConsoleView = function(drawer)
 {
     WebInspector.View.call(this, document.getElementById("console-view"));
+
+    // added by jcrom
+    this.tmp_properties = [];
+    this.tmp_extproperties = [];
+    this,expressionString = '';
 
     this.messages = [];
     this.drawer = drawer;
@@ -48,7 +53,7 @@ WebInspector.ConsoleView = function(drawer)
     this.promptElement.setAttribute("contenteditable", "true");
     this.promptElement.className = "source-code";
     this.promptElement.addEventListener("keydown", this._promptKeyDown.bind(this), true);
-    this.prompt = new WebInspector.TextPrompt(this.promptElement, this.completions.bind(this), ExpressionStopCharacters + ".");
+    this.prompt = new WebInspector.TextPrompt(this.promptElement, this.completions_extend.bind(this), ExpressionStopCharacters + ".:");
     this.prompt.history = WebInspector.settings.consoleHistory;
 
     this.topGroup = new WebInspector.ConsoleGroup(null);
@@ -365,6 +370,82 @@ WebInspector.ConsoleView.prototype = {
             InspectorBackend.getCompletions(expressionString, includeCommandLineAPI, reportCompletions);
     },
 
+    //@author juchao
+    //@doc used by function::TextPrompt
+    completions_extend: function(wordRange, bestMatchOnly, completionsReadyCallback)
+    {
+        // Pass less stop characters to rangeOfWord so the range will be a more complete expression.
+        var expressionRange = wordRange.startContainer.rangeOfWord(wordRange.startOffset, ExpressionStopCharacters, this.promptElement, "backward");
+        var expressionString = expressionRange.toString();
+        var lastIndex = expressionString.length - 1;
+
+        var dotNotation = (expressionString[lastIndex] === "." || expressionString[lastIndex] === ":");
+        var bracketNotation = (expressionString[lastIndex] === "[");
+
+        if (dotNotation || bracketNotation)
+            expressionString = expressionString.substr(0, lastIndex);
+        this.expressionString = expressionString;
+        var prefix = wordRange.toString();
+        if (!expressionString && !prefix)
+            return;
+
+
+        var reportCompletions = this._reportCompletions.bind(this, bestMatchOnly, completionsReadyCallback, dotNotation, bracketNotation, prefix);
+        // Collect comma separated object properties for the completion.
+
+        var includeCommandLineAPI = (!dotNotation && !bracketNotation);
+        var injectedScriptAccess;
+        var tmp_flag = false;
+        if (!expressionString && this.tmp_properties.length === 0)
+          tmp_flag = true;
+        else if (expressionString && !prefix)
+          tmp_flag = true;
+        else if (!expressionString && prefix.length<2)
+          tmp_flag = true;
+        else if (expressionString && this.tmp_extproperties.length === 0)
+          tmp_flag = true;
+        if (tmp_flag){
+          if (WebInspector.panels.scripts && WebInspector.panels.scripts.paused)
+              InspectorBackend.getCompletionsOnCallFrame(WebInspector.panels.scripts.selectedCallFrameId(), expressionString, includeCommandLineAPI, reportCompletions);
+          else
+              InspectorBackend.getCompletions(expressionString, includeCommandLineAPI, reportCompletions);
+        }else {
+          if (expressionString)
+            this.reportCompletions_ext(bestMatchOnly, completionsReadyCallback, dotNotation, bracketNotation, prefix, this.tmp_extproperties);
+          else
+            this.reportCompletions_ext(bestMatchOnly, completionsReadyCallback, dotNotation, bracketNotation, prefix, this.tmp_properties);
+        }
+    },
+
+    //@author juchao
+    //@doc used by fucntion::completions_extend
+    reportCompletions_ext: function(bestMatchOnly, completionsReadyCallback, dotNotation, bracketNotation, prefix, tmp_properties) {
+        var results = [];
+        var properties = tmp_properties;
+        for (var i = 0; i < properties.length; ++i) {
+            var property = properties[i];
+
+            if (dotNotation && !/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(property))
+                continue;
+
+            if (bracketNotation) {
+                if (!/^[0-9]+$/.test(property))
+                    property = quoteUsed + property.escapeCharacters(quoteUsed + "\\") + quoteUsed;
+                property += "]";
+            }
+
+            if (property.length < prefix.length)
+                continue;
+            if (property.indexOf(prefix) !== 0)
+                continue;
+
+            results.push(property);
+            if (bestMatchOnly)
+                break;
+        }
+        completionsReadyCallback(results);
+    },
+
     _reportCompletions: function(bestMatchOnly, completionsReadyCallback, dotNotation, bracketNotation, prefix, result, isException) {
         if (isException)
             return;
@@ -378,6 +459,10 @@ WebInspector.ConsoleView.prototype = {
 
         var results = [];
         var properties = Object.keys(result).sort();
+        if (this.expressionString === '' )
+          this.tmp_properties = properties;
+        else
+          this.tmp_extproperties = properties;
 
         for (var i = 0; i < properties.length; ++i) {
             var property = properties[i];
@@ -1153,4 +1238,3 @@ WebInspector.ConsoleGroup.prototype = {
         event.preventDefault();
     }
 }
-

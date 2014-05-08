@@ -45,7 +45,13 @@ WebInspector.SourceCSSTokenizer = function()
 {
     WebInspector.SourceTokenizer.call(this);
 
+    if (WebInspector.cssNameCompletions === undefined ) {
+      this._propertyKeywords = [];
+    } else {
+
     this._propertyKeywords = WebInspector.cssNameCompletions.keySet();
+    };
+
 
     this._valueKeywords = [
         "above", "absolute", "activeborder", "activecaption", "afar", "after-white-space", "ahead", "alias", "all", "all-scroll",
@@ -143,7 +149,7 @@ WebInspector.SourceCSSTokenizer.prototype = {
         while (1) {
             switch (gotoCase)
             // Following comment is replaced with generated state machine.
-            
+
         {
             case 1: var yych;
             var yyaccept = 0;
