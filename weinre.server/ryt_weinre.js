@@ -10,7 +10,7 @@ require(path.join(node_modules, 'coffee-script'));
 var cli = require(path.join(lib, '/cli'));
 
 function run(){
-  cli.run();
+  cli.ects_run();
 };
 
-exports.weinre = run;
+exports.run = run;

@@ -63,6 +63,72 @@ exports.run = ->
     #----
 
     delete parsedOpts.argv
+
+    if !parsedOpts.httpPort and parsedOpts.p
+        parsedOpts.httpPort = parsedOpts.p
+    if !parsedOpts.boundHost and parsedOpts.b
+        parsedOpts.boundHost = parsedOpts.b
+    if !parsedOpts.verbose and parsedOpts.v
+        parsedOpts.verbose = parsedOpts.v
+    if !parsedOpts.debug and parsedOpts.d
+        parsedOpts.debug = parsedOpts.d
+    if !parsedOpts.readTimeout and parsedOpts.r
+        parsedOpts.readTimeout = parsedOpts.r
+    if !parsedOpts.deathTimeout and parsedOpts.t
+        parsedOpts.deathTimeout = parsedOpts.t
+
+    opts = _.extend {}, optionDefaults, getDotWeinreServerProperties(), parsedOpts
+
+    if !opts.deathTimeout?
+        opts.deathTimeout = 3 * opts.readTimeout
+
+    utils.setOptions opts
+
+    weinre.run opts
+
+#-------------------------------------------------------------------------------
+# added for ects
+exports.ects_run = ->
+
+    knownOpts =
+        httpPort:     Number
+        boundHost:    String
+        verbose:      Boolean
+        debug:        Boolean
+        readTimeout:  Number
+        deathTimeout: Number
+        help:         Boolean
+
+    shortHands =
+        '?':  ['--help']
+        'h':  ['--help']
+
+    nopt.invalidHandler = printNoptError
+    parsedOpts = nopt(knownOpts, shortHands, process.argv, 2)
+
+    #----
+
+    printHelp() if parsedOpts.help
+
+    args = parsedOpts.argv.remain
+
+    #----
+
+    delete parsedOpts.argv
+
+    if !parsedOpts.httpPort and parsedOpts.p
+        parsedOpts.httpPort = parsedOpts.p
+    if !parsedOpts.boundHost and parsedOpts.b
+        parsedOpts.boundHost = parsedOpts.b
+    if !parsedOpts.verbose and parsedOpts.v
+        parsedOpts.verbose = parsedOpts.v
+    if !parsedOpts.debug and parsedOpts.d
+        parsedOpts.debug = parsedOpts.d
+    if !parsedOpts.readTimeout and parsedOpts.r
+        parsedOpts.readTimeout = parsedOpts.r
+    if !parsedOpts.deathTimeout and parsedOpts.t
+        parsedOpts.deathTimeout = parsedOpts.t
+
     opts = _.extend {}, optionDefaults, getDotWeinreServerProperties(), parsedOpts
 
     if !opts.deathTimeout?
@@ -85,12 +151,12 @@ usage:   #{utils.Program} [options]
 version: #{version}
 
 options:
-    --httpPort     port to run the http server on        default: #{optionDefaults.httpPort}
-    --boundHost    ip address to bind the server to      default: #{optionDefaults.boundHost}
-    --verbose      print more diagnostics                default: #{optionDefaults.verbose}
-    --debug        print even more diagnostics           default: #{optionDefaults.debug}
-    --readTimeout  seconds to wait for a client message  default: #{optionDefaults.readTimeout}
-    --deathTimeout seconds to wait to kill client        default: 3*readTimeout
+    -p,--httpPort     port to run the http server on        default: #{optionDefaults.httpPort}
+    -b,--boundHost    ip address to bind the server to      default: #{optionDefaults.boundHost}
+    -v,--verbose      print more diagnostics                default: #{optionDefaults.verbose}
+    -d,--debug        print even more diagnostics           default: #{optionDefaults.debug}
+    -r,--readTimeout  seconds to wait for a client message  default: #{optionDefaults.readTimeout}
+    -t,--deathTimeout seconds to wait to kill client        default: 3*readTimeout
 
 --boundHost can be an ip address, hostname, or -all-, where -all-
 means binding to all ip address on the current machine'
